@@ -1,8 +1,8 @@
-use crate::ray::Ray;
-use crate::vec3::{Vec3, Color};
 use crate::hit_record::HitRecord;
+use crate::ray::Ray;
+use crate::vec3::{Color, Vec3};
 
-pub trait Material {
+pub trait Material: Send + Sync {
     fn scatter(&self, ray: &Ray, record: &HitRecord) -> Option<(Color, Ray)>;
 }
 
@@ -14,7 +14,7 @@ pub struct Metal {
 
 impl Metal {
     pub const fn new(r: f64, g: f64, b: f64, f: f64) -> Self {
-        Metal { 
+        Metal {
             color: Color { x: r, y: g, z: b },
             fuzz: f,
         }
@@ -23,27 +23,27 @@ impl Metal {
 
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, record: &HitRecord) -> Option<(Color, Ray)> {
-      let fuzz = if self.fuzz < 1.0 { self.fuzz } else { 1.0 };
-      let reflected = ray.direction.normalize().reflect(record.normal);
-      let fuzzy_direction = reflected + fuzz * Vec3::random_in_unit_sphere();
-      let scattered = Ray::new(record.point, fuzzy_direction);
+        let fuzz = if self.fuzz < 1.0 { self.fuzz } else { 1.0 };
+        let reflected = ray.direction.normalize().reflect(record.normal);
+        let fuzzy_direction = reflected + fuzz * Vec3::random_in_unit_sphere();
+        let scattered = Ray::new(record.point, fuzzy_direction);
 
-      if scattered.direction.dot(record.normal) > 0.0 {
-          Some((self.color, scattered))
-      } else {
-          None
-      }
+        if scattered.direction.dot(record.normal) > 0.0 {
+            Some((self.color, scattered))
+        } else {
+            None
+        }
     }
 }
 
 #[derive(Copy, Clone)]
 pub struct Lambertian {
-    pub color: Color
+    pub color: Color,
 }
 
 impl Lambertian {
     pub const fn new(r: f64, g: f64, b: f64) -> Self {
-        Lambertian { 
+        Lambertian {
             color: Color { x: r, y: g, z: b },
         }
     }
@@ -51,10 +51,14 @@ impl Lambertian {
 
 impl Material for Lambertian {
     fn scatter(&self, _: &Ray, record: &HitRecord) -> Option<(Color, Ray)> {
-      let random = record.normal + Vec3::random_unit();
-      let direction = if random.any_near_zero() {record.normal} else {random};
-      let scattered = Ray::new(record.point, direction);
+        let random = record.normal + Vec3::random_unit();
+        let direction = if random.any_near_zero() {
+            record.normal
+        } else {
+            random
+        };
+        let scattered = Ray::new(record.point, direction);
 
-      Some((self.color, scattered))
+        Some((self.color, scattered))
     }
 }
